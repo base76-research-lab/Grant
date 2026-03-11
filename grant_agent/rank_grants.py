@@ -33,7 +33,11 @@ def _tokens(text: str) -> set[str]:
     return {t for t in re.split(r"[^a-z0-9]+", text.lower()) if t}
 
 
-def rank_grants(grants: list[dict[str, Any]], profile: dict[str, Any]) -> list[RankedGrant]:
+def rank_grants(
+    grants: list[dict[str, Any]],
+    profile: dict[str, Any],
+    eligibility_rules: dict[str, Any] | None = None,
+) -> list[RankedGrant]:
     fields = _norm_set(profile.get("fields", []))
     keywords = _norm_set(profile.get("keywords", []))
     all_profile_terms = fields | keywords
@@ -52,7 +56,7 @@ def rank_grants(grants: list[dict[str, Any]], profile: dict[str, Any]) -> list[R
 
     ranked: list[RankedGrant] = []
     for grant in grants:
-        eligibility = evaluate_grant_eligibility(profile, grant)
+        eligibility = evaluate_grant_eligibility(profile, grant, rules=eligibility_rules)
 
         topic_terms = _norm_set(grant.get("topic_keywords", []))
         topic_tokens: set[str] = set()

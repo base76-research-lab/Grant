@@ -1,0 +1,21 @@
+topic:
+  tokens:
+    - ai
+    - artificial
+    - interpretability
+    - governance
+    - uncertainty
+    - satellite
+
+weights:
+  geo: 0.40
+  budget: 0.25
+  topic: 0.25
+  deadline: 0.10
+
+thresholds:
+  eligible_min: 0.80
+
+hard_fail:
+  geo_mismatch: true
+  deadline_passed: true

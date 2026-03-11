@@ -37,6 +37,12 @@ python3 run_pipeline.py --top-k 3
 python3 run_pipeline.py --discovery-source eu_sedia_api --eu-sedia-text "artificial intelligence"
 ```
 
+Use custom eligibility rules:
+
+```bash
+python3 run_pipeline.py --eligibility-rules eligibility_rules.yaml
+```
+
 ## One-Line Description
 
 Grant is an AI funding copilot for researchers, from opportunity discovery to proposal draft generation with a mandatory human approval gate.

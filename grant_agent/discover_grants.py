@@ -227,50 +227,73 @@ def _discover_eu_sedia_grants(url: str, max_results: int, text: str) -> list[dic
     if not isinstance(data, dict):
         return []
 
-    # The SEDIA response shape can vary between environments.
-    candidates = []
-    for key in ["results", "items", "hits", "content", "documents"]:
-        value = data.get(key)
-        if isinstance(value, list):
-            candidates = value
-            break
+    def _list_of_dicts(value: Any) -> bool:
+        return isinstance(value, list) and value and all(isinstance(x, dict) for x in value)
 
-    if not candidates:
-        nested = data.get("data") if isinstance(data.get("data"), dict) else {}
-        for key in ["results", "items", "hits", "content", "documents"]:
-            value = nested.get(key)
-            if isinstance(value, list):
-                candidates = value
-                break
+    def _has_title_like(item: dict[str, Any]) -> bool:
+        title_keys = {"title", "name", "subject", "callTitle", "topic", "identifier", "reference"}
+        return any(k in item and str(item.get(k, "")).strip() for k in title_keys)
+
+    def _collect_record_lists(node: Any, depth: int = 0) -> list[list[dict[str, Any]]]:
+        if depth > 6:
+            return []
+        found: list[list[dict[str, Any]]] = []
+        if _list_of_dicts(node):
+            found.append(node)
+        if isinstance(node, dict):
+            for value in node.values():
+                found.extend(_collect_record_lists(value, depth + 1))
+        elif isinstance(node, list):
+            for value in node:
+                found.extend(_collect_record_lists(value, depth + 1))
+        return found
+
+    def _best_candidates(payload_obj: dict[str, Any]) -> list[dict[str, Any]]:
+        lists = _collect_record_lists(payload_obj)
+        if not lists:
+            return []
+
+        def score(lst: list[dict[str, Any]]) -> tuple[int, int]:
+            title_like = sum(1 for item in lst[:50] if _has_title_like(item))
+            return (title_like, len(lst))
+
+        lists.sort(key=score, reverse=True)
+        return lists[0]
+
+    def _first_non_empty_str(item: dict[str, Any], keys: list[str]) -> str:
+        for key in keys:
+            value = item.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+            if isinstance(value, dict):
+                for nested_key in ["value", "label", "name", "text", "title"]:
+                    nested = value.get(nested_key)
+                    if isinstance(nested, str) and nested.strip():
+                        return nested.strip()
+        return ""
+
+    candidates = _best_candidates(data)
 
     results: list[dict[str, Any]] = []
     for item in candidates:
         if not isinstance(item, dict):
             continue
 
-        call_id = str(
-            item.get("id")
-            or item.get("reference")
-            or item.get("callIdentifier")
-            or item.get("identifier")
-            or ""
-        ).strip()
-        title = str(item.get("title") or item.get("name") or item.get("subject") or "").strip()
+        call_id = _first_non_empty_str(item, ["id", "reference", "callIdentifier", "identifier", "topicCode"])
+        title = _first_non_empty_str(item, ["title", "name", "subject", "callTitle", "topic", "topicName"])
         if not title:
             continue
         if not call_id:
             call_id = f"sedia_{len(results)+1}"
 
-        deadline = str(
-            item.get("deadlineDate")
-            or item.get("deadline")
-            or item.get("closingDate")
-            or "rolling"
-        ).strip()
+        deadline = _first_non_empty_str(item, ["deadlineDate", "deadline", "closingDate", "endDate"]) or "rolling"
 
-        description = str(item.get("description") or item.get("summary") or "").strip()
-        programme = str(item.get("programme") or item.get("programmeName") or "Horizon Europe").strip()
-        topic = str(item.get("topic") or item.get("topicName") or "research").strip()
+        description = _first_non_empty_str(item, ["description", "summary", "abstract", "teaser"])
+        programme = _first_non_empty_str(item, ["programme", "programmeName", "frameworkProgramme"]) or "Horizon Europe"
+        topic = _first_non_empty_str(item, ["topic", "topicName", "domain", "area"]) or "research"
+        call_url = _first_non_empty_str(item, ["url", "link", "callUrl", "detailsUrl"])
+        if not call_url:
+            call_url = f"https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-details/{call_id}"
 
         results.append(
             {
@@ -282,8 +305,8 @@ def _discover_eu_sedia_grants(url: str, max_results: int, text: str) -> list[dic
                 "geography": "EU",
                 "eligibility": "See call eligibility conditions",
                 "required_documents": ["proposal", "budget", "consortium_info"],
-                "topic_keywords": [programme, topic, "research", "funding"],
-                "call_url": str(item.get("url") or item.get("link") or ""),
+                "topic_keywords": [programme, topic, text, "research", "funding"],
+                "call_url": call_url,
                 "description": description,
                 "programme": programme,
                 "topic": topic,

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from grant_agent.discover_grants import DiscoveryConfig, discover_grants
+from grant_agent.eligibility_engine import load_eligibility_rules
 from grant_agent.proposal_draft import generate_draft
 from grant_agent.rank_grants import load_research_profile, rank_grants
 from grant_agent.submission_helper import create_submission_packet
@@ -56,6 +57,11 @@ def parse_args() -> argparse.Namespace:
         default="output/ranked_grants.json",
         help="Where to write ranked grants JSON report",
     )
+    parser.add_argument(
+        "--eligibility-rules",
+        default="eligibility_rules.yaml",
+        help="Path to YAML file with eligibility rules",
+    )
     return parser.parse_args()
 
 
@@ -83,6 +89,7 @@ def main() -> None:
     root = Path(__file__).resolve().parent
 
     profile = load_research_profile(root / args.profile)
+    eligibility_rules = load_eligibility_rules(root / args.eligibility_rules)
     discovered = discover_grants(
         DiscoveryConfig(
             grants_file=root / args.grants,
@@ -96,7 +103,7 @@ def main() -> None:
             eu_sedia_text=args.eu_sedia_text,
         )
     )
-    ranked = rank_grants(discovered, profile)[: args.top_k]
+    ranked = rank_grants(discovered, profile, eligibility_rules=eligibility_rules)[: args.top_k]
 
     print("\nTop matched grants:")
     for idx, item in enumerate(ranked, start=1):
