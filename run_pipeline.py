@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 
 from config.auth_config import load_auth_config, validate_auth_config
@@ -13,6 +14,104 @@ from grant_agent.profile_index import load_profile_index
 from grant_agent.proposal_draft import generate_draft
 from grant_agent.rank_grants import load_research_profile, rank_grants
 from grant_agent.submission_helper import create_submission_packet
+
+
+def _resolve_grant_url(grant: dict) -> str:
+    """Return best-effort canonical URL for a grant record."""
+    for key in ("url", "call_url", "details_url", "link"):
+        value = grant.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    grant_id = str(grant.get("id", "")).strip()
+    source = str(grant.get("source", "")).lower()
+    discovery_source = str(grant.get("discovery_source", "")).lower()
+
+    if "grants.gov" in source or "grants_gov" in discovery_source or grant_id.startswith("grantsgov_"):
+        opp_id = grant_id.replace("grantsgov_", "")
+        if opp_id:
+            return f"https://www.grants.gov/search-results-detail/{opp_id}"
+
+    if "eu funding" in source or "sedia" in discovery_source or grant_id.startswith("eu_sedia_"):
+        call_id = grant_id.replace("eu_sedia_", "")
+        if call_id:
+            return (
+                "https://ec.europa.eu/info/funding-tenders/opportunities/portal/"
+                f"screen/opportunities/topic-details/{call_id}"
+            )
+
+    if "vinnova" in source or "vinnova" in discovery_source or grant_id.startswith("vinnova"):
+        return "https://www.vinnova.se/"
+
+    if "esa" in source or grant_id.startswith("esa_"):
+        return "https://phi.esa.int/"
+
+    if "erc" in source or grant_id.startswith("erc_"):
+        return "https://erc.europa.eu/"
+
+    if "open philanthropy" in source or grant_id.startswith("open_phil"):
+        return "https://www.openphilanthropy.org/"
+
+    return ""
+
+
+def _count_ready_packages(out_dir: Path) -> int:
+    proposal_pack_dir = out_dir / "proposal_pack"
+    required_files = ("abstract.md", "methodology.md", "impact.md", "references.md")
+
+    if not proposal_pack_dir.exists():
+        return 0
+
+    ready_count = 0
+    for grant_dir in proposal_pack_dir.iterdir():
+        if grant_dir.is_dir() and all((grant_dir / name).exists() for name in required_files):
+            ready_count += 1
+    return ready_count
+
+
+def _write_dod_scorecard(ranked_payload: list[dict], out_dir: Path) -> Path:
+    total = len(ranked_payload)
+    complete = sum(
+        1
+        for item in ranked_payload
+        if all(str(item.get(key, "")).strip() for key in ("title", "deadline", "source", "url"))
+    )
+    coverage_rate = (complete / total) if total else 0.0
+
+    top3 = ranked_payload[:3]
+    relevant_top3 = sum(
+        1
+        for item in top3
+        if str(item.get("eligibility_status", "")).lower() in {"eligible", "maybe"}
+        and float(item.get("match_score", 0) or 0) >= 0.6
+    )
+    top3_precision = (relevant_top3 / 3) if len(top3) == 3 else 0.0
+    ready_package_count = _count_ready_packages(out_dir)
+
+    scorecard_lines = [
+        "# Grant DoD Scorecard",
+        "",
+        f"- Generated: {datetime.now().isoformat(timespec='seconds')}",
+        "- Data source: `output/ranked_grants.json` + `output/proposal_pack/`",
+        "",
+        "## Metrics",
+        f"- coverage_rate: `{coverage_rate:.3f}` ({complete}/{total})",
+        f"- top3_precision: `{top3_precision:.3f}` ({relevant_top3}/3)",
+        f"- ready_package_count: `{ready_package_count}`",
+        "",
+        "## Status",
+        f"- Discovery/ranking: {'GREEN' if coverage_rate == 1.0 and top3_precision == 1.0 else 'YELLOW'}",
+        f"- Package readiness: {'GREEN' if ready_package_count >= 1 else 'YELLOW'}",
+        f"- Schema completeness (url): {'GREEN' if coverage_rate == 1.0 else 'YELLOW'}",
+        "",
+        "## Next Action (single)",
+        "- Keep these three metrics green for two consecutive non-mock runs before adding new features.",
+    ]
+
+    scorecard_path = out_dir / "DoD_SCORECARD.md"
+    scorecard_path.parent.mkdir(parents=True, exist_ok=True)
+    scorecard_path.write_text("\n".join(scorecard_lines) + "\n", encoding="utf-8")
+    return scorecard_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -148,6 +247,8 @@ def main() -> None:
 
     if not ranked:
         print("\nNo matching grants found.")
+        scorecard_path = _write_dod_scorecard([], root / args.out)
+        print(f"DoD scorecard updated: {scorecard_path}")
         return
 
     ranked_payload = []
@@ -159,6 +260,7 @@ def main() -> None:
                 "title": item.grant.get("title"),
                 "source": item.grant.get("source"),
                 "discovery_source": item.grant.get("discovery_source", "unknown"),
+                "url": _resolve_grant_url(item.grant),
                 "deadline": item.grant.get("deadline"),
                 "match_score": item.match_score,
                 "eligibility_status": item.eligibility_status,
@@ -184,6 +286,8 @@ def main() -> None:
         print("- --auto-approve-top")
         if approval_source not in {"no_approval"}:
             print(f"Approval note: {approval_source}")
+        scorecard_path = _write_dod_scorecard(ranked_payload, root / args.out)
+        print(f"DoD scorecard updated: {scorecard_path}")
         return
 
     draft_text = generate_draft(approved_grant, profile, root / args.templates)
@@ -199,6 +303,9 @@ def main() -> None:
     print(f"- Evidence methodology: {evidence_pack['methodology']}")
     print(f"- Evidence impact: {evidence_pack['impact']}")
     print(f"- Evidence references: {evidence_pack['references']}")
+
+    scorecard_path = _write_dod_scorecard(ranked_payload, root / args.out)
+    print(f"DoD scorecard updated: {scorecard_path}")
 
 
 if __name__ == "__main__":
