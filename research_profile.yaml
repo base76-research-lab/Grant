@@ -1,0 +1,14 @@
+researcher:
+  name: Bjorn Wikstrom
+  institution: Base76 Research Lab
+  fields:
+    - mechanistic interpretability
+    - AI governance
+    - epistemic uncertainty
+    - satellite AI / edge AI
+  keywords:
+    - hallucination detection
+    - latent field dynamics
+    - transformer observability
+  typical_budget: 50000-2000000 EUR
+  geography: EU

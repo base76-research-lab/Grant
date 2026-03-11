@@ -1,0 +1,46 @@
+[
+  {
+    "id": "esa_phi_lab_2026_observability",
+    "source": "ESA Phi-lab",
+    "title": "AI Observability and Reliability for Earth Observation Pipelines",
+    "deadline": "2026-05-18",
+    "funding_amount_eur": 750000,
+    "geography": "EU",
+    "eligibility": "Research labs and SMEs in ESA member states",
+    "required_documents": ["project_description", "budget", "team_cv", "ethics_statement"],
+    "topic_keywords": ["satellite AI", "edge AI", "uncertainty", "observability", "reliability"]
+  },
+  {
+    "id": "erc_stg_2026_ai_frontiers",
+    "source": "ERC",
+    "title": "Frontier Methods for Robust and Interpretable AI",
+    "deadline": "2026-10-15",
+    "funding_amount_eur": 1500000,
+    "geography": "EU",
+    "eligibility": "Principal investigator 2-7 years after PhD",
+    "required_documents": ["extended_synopsis", "cv", "track_record", "host_support_letter"],
+    "topic_keywords": ["interpretability", "AI safety", "fundamental research", "transformers"]
+  },
+  {
+    "id": "open_phil_ai_safety_rapid",
+    "source": "Open Philanthropy",
+    "title": "Rapid Grants for AI Safety and Alignment",
+    "deadline": "rolling",
+    "funding_amount_eur": 250000,
+    "geography": "Global",
+    "eligibility": "Independent researchers and labs",
+    "required_documents": ["proposal", "budget", "risk_statement"],
+    "topic_keywords": ["AI safety", "hallucination", "alignment", "evaluation"]
+  },
+  {
+    "id": "vinnova_trustworthy_ai_2026",
+    "source": "Vinnova",
+    "title": "Trustworthy AI for Public Value",
+    "deadline": "2026-06-30",
+    "funding_amount_eur": 300000,
+    "geography": "SE",
+    "eligibility": "Swedish organizations",
+    "required_documents": ["project_plan", "budget", "impact_plan"],
+    "topic_keywords": ["AI governance", "societal impact", "reliability", "transparency"]
+  }
+]
