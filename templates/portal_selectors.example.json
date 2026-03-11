@@ -1,0 +1,13 @@
+{
+  "field_selectors": {
+    "project_title": "input[name='project_title']",
+    "project_abstract": "textarea[name='project_abstract']",
+    "methodology_summary": "textarea[name='methodology_summary']",
+    "impact_statement": "textarea[name='impact_statement']",
+    "references_summary": "textarea[name='references_summary']",
+    "applicant_organization": "input[name='applicant_organization']",
+    "principal_investigator": "input[name='principal_investigator']",
+    "call_deadline": "input[name='call_deadline']"
+  },
+  "submit_selector": "button[type='submit']"
+}

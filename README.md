@@ -120,6 +120,36 @@ Generated artifacts:
 - `output/submission_orchestrator/<grant_id>_validation.json`
 - `output/submission_orchestrator/<grant_id>_<mode>_review.md`
 
+## Playwright Portal Test (Autofill)
+
+Use Playwright to test form autofill against a portal URL. Default behavior does not submit.
+
+Install once:
+
+```bash
+pip install playwright
+playwright install chromium
+```
+
+Dry run (fills mapped fields + screenshot, no submit):
+
+```bash
+python3 submission_playwright_runner.py \
+	--grant-id grantsgov_361009 \
+	--portal-url "https://example-portal/form" \
+	--selectors templates/portal_selectors.example.json
+```
+
+Explicit submit test (only in safe sandbox):
+
+```bash
+python3 submission_playwright_runner.py \
+	--grant-id grantsgov_361009 \
+	--portal-url "https://example-portal/form" \
+	--selectors templates/portal_selectors.example.json \
+	--confirm-submit
+```
+
 ## One-Line Description
 
 Grant is an AI funding copilot for researchers, from opportunity discovery to proposal draft generation with a mandatory human approval gate.
