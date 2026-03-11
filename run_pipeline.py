@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from config.auth_config import load_auth_config, validate_auth_config
 from grant_agent.discover_grants import DiscoveryConfig, discover_grants
 from grant_agent.evidence_pack_builder import build_evidence_pack
 from grant_agent.eligibility_engine import load_eligibility_rules
@@ -70,6 +71,11 @@ def parse_args() -> argparse.Namespace:
         default="output/grant_knowledge_graph.json",
         help="Where to write grant knowledge graph JSON",
     )
+    parser.add_argument(
+        "--auth-env-file",
+        default=".env",
+        help="Path to env file containing auth settings",
+    )
     return parser.parse_args()
 
 
@@ -95,6 +101,14 @@ def _select_approved_grant(ranked, approve_rank: int, approve_grant_id: str, aut
 def main() -> None:
     args = parse_args()
     root = Path(__file__).resolve().parent
+
+    auth_config = load_auth_config(root / args.auth_env_file)
+    auth_warnings = validate_auth_config(auth_config)
+    print(
+        f"Auth context: mode={auth_config.auth_mode}, tenant_mode={auth_config.tenant_mode}, user_id={auth_config.user_id}"
+    )
+    for warning in auth_warnings:
+        print(f"Auth warning: {warning}")
 
     profile_path = root / args.profile
     profile = load_research_profile(profile_path)

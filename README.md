@@ -42,6 +42,20 @@ Resulting cycle:
 - `grants_gov_api`
 - `eu_sedia_api`
 
+## Auth Per User
+
+Grant supports per-user operation via API key mode now and OAuth-ready mode.
+
+1. Copy `.env.example` to `.env`.
+2. Set `GRANT_AUTH_MODE=api_key` (default) or `GRANT_AUTH_MODE=oauth`.
+3. Run pipeline with optional auth env path:
+
+```bash
+python3 run_pipeline.py --auth-env-file .env --top-k 3
+```
+
+See `AUTH_MODEL.md` for the full model.
+
 ## Run
 
 ```bash
