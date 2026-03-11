@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from config.auth_config import load_auth_config, validate_auth_config
@@ -114,6 +114,41 @@ def _write_dod_scorecard(ranked_payload: list[dict], out_dir: Path) -> Path:
     return scorecard_path
 
 
+def _parse_deadline_date(value: object) -> date | None:
+    if not isinstance(value, str):
+        return None
+
+    text = value.strip()
+    if not text:
+        return None
+
+    lowered = text.lower()
+    if lowered in {"rolling", "tbd", "unknown", "n/a"}:
+        return None
+
+    formats = ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y")
+    for fmt in formats:
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _filter_grants_by_deadline_window(grants: list[dict], within_days: int) -> list[dict]:
+    if within_days <= 0:
+        return grants
+
+    today = date.today()
+    cutoff = today + timedelta(days=within_days)
+    filtered: list[dict] = []
+    for grant in grants:
+        parsed_deadline = _parse_deadline_date(grant.get("deadline"))
+        if parsed_deadline and today <= parsed_deadline <= cutoff:
+            filtered.append(grant)
+    return filtered
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Grant Agent MVP pipeline")
     parser.add_argument("--profile", default="research_profile.yaml", help="Path to researcher profile YAML")
@@ -152,6 +187,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--templates", default="templates", help="Directory with proposal templates")
     parser.add_argument("--out", default="output", help="Output directory")
     parser.add_argument("--top-k", type=int, default=3, help="How many grants to rank")
+    parser.add_argument(
+        "--deadline-within-days",
+        type=int,
+        default=0,
+        help="Only keep grants with parseable deadlines within this many days from today (0 disables)",
+    )
     parser.add_argument("--approve-rank", type=int, default=0, help="Approve grant by rank index (1-based)")
     parser.add_argument("--approve-grant-id", default="", help="Approve grant by explicit grant ID")
     parser.add_argument("--auto-approve-top", action="store_true", help="Auto-approve top-ranked grant")
@@ -226,6 +267,14 @@ def main() -> None:
             eu_sedia_text=args.eu_sedia_text,
         )
     )
+
+    if args.deadline_within_days > 0:
+        before_count = len(discovered)
+        discovered = _filter_grants_by_deadline_window(discovered, args.deadline_within_days)
+        print(
+            "Deadline filter applied: "
+            f"within_days={args.deadline_within_days}, kept={len(discovered)}/{before_count}"
+        )
 
     graph = build_knowledge_graph(discovered, profile_index)
     graph_output_path = root / args.knowledge_graph_output
