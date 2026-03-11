@@ -7,11 +7,15 @@ import re
 
 import yaml
 
+from grant_agent.eligibility_engine import evaluate_grant_eligibility
+
 
 @dataclass
 class RankedGrant:
     grant: dict[str, Any]
     match_score: float
+    eligibility_status: str
+    eligibility_score: float
     reasons: list[str]
 
 
@@ -48,6 +52,8 @@ def rank_grants(grants: list[dict[str, Any]], profile: dict[str, Any]) -> list[R
 
     ranked: list[RankedGrant] = []
     for grant in grants:
+        eligibility = evaluate_grant_eligibility(profile, grant)
+
         topic_terms = _norm_set(grant.get("topic_keywords", []))
         topic_tokens: set[str] = set()
         for term in topic_terms:
@@ -66,7 +72,7 @@ def rank_grants(grants: list[dict[str, Any]], profile: dict[str, Any]) -> list[R
         geo = str(grant.get("geography", "")).upper()
         geo_ok = 1.0 if geo in {"GLOBAL", preferred_geo} else 0.4
 
-        score = 0.6 * overlap_score + 0.25 * budget_ok + 0.15 * geo_ok
+        score = 0.45 * overlap_score + 0.2 * budget_ok + 0.1 * geo_ok + 0.25 * eligibility.score
 
         reasons: list[str] = []
         for term in sorted(matched_profile_terms):
@@ -75,8 +81,19 @@ def rank_grants(grants: list[dict[str, Any]], profile: dict[str, Any]) -> list[R
             reasons.append("+ budget fit")
         if geo_ok >= 1.0:
             reasons.append("+ geography fit")
+        reasons.append(f"+ eligibility={eligibility.status} ({eligibility.score:.2f})")
+        for item in eligibility.reasons[:2]:
+            reasons.append(f"+ {item}")
 
-        ranked.append(RankedGrant(grant=grant, match_score=round(score, 3), reasons=reasons))
+        ranked.append(
+            RankedGrant(
+                grant=grant,
+                match_score=round(score, 3),
+                eligibility_status=eligibility.status,
+                eligibility_score=eligibility.score,
+                reasons=reasons,
+            )
+        )
 
     ranked.sort(key=lambda x: x.match_score, reverse=True)
     return ranked

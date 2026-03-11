@@ -18,6 +18,8 @@ class DiscoveryConfig:
     vinnova_api_url: str = "https://data.vinnova.se/api/utlysningar/2024-01-01"
     grants_gov_api_url: str = "https://api.grants.gov/v1/api/search2"
     grants_gov_keyword: str = "artificial intelligence"
+    eu_sedia_api_url: str = "https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=*"
+    eu_sedia_text: str = "artificial intelligence"
 
 
 def _parse_deadline(raw: str) -> date | None:
@@ -212,6 +214,89 @@ def _discover_grants_gov_grants(url: str, max_results: int, keyword: str) -> lis
     return results[:max_results]
 
 
+def _discover_eu_sedia_grants(url: str, max_results: int, text: str) -> list[dict[str, Any]]:
+    """Load opportunities from EU Funding & Tenders SEDIA API."""
+    payload = {
+        "query": text,
+        "pageNumber": 0,
+        "pageSize": max_results,
+        "sortField": "relevance",
+        "sortOrder": "DESC",
+    }
+    data = _fetch_json(url, method="POST", payload=payload)
+    if not isinstance(data, dict):
+        return []
+
+    # The SEDIA response shape can vary between environments.
+    candidates = []
+    for key in ["results", "items", "hits", "content", "documents"]:
+        value = data.get(key)
+        if isinstance(value, list):
+            candidates = value
+            break
+
+    if not candidates:
+        nested = data.get("data") if isinstance(data.get("data"), dict) else {}
+        for key in ["results", "items", "hits", "content", "documents"]:
+            value = nested.get(key)
+            if isinstance(value, list):
+                candidates = value
+                break
+
+    results: list[dict[str, Any]] = []
+    for item in candidates:
+        if not isinstance(item, dict):
+            continue
+
+        call_id = str(
+            item.get("id")
+            or item.get("reference")
+            or item.get("callIdentifier")
+            or item.get("identifier")
+            or ""
+        ).strip()
+        title = str(item.get("title") or item.get("name") or item.get("subject") or "").strip()
+        if not title:
+            continue
+        if not call_id:
+            call_id = f"sedia_{len(results)+1}"
+
+        deadline = str(
+            item.get("deadlineDate")
+            or item.get("deadline")
+            or item.get("closingDate")
+            or "rolling"
+        ).strip()
+
+        description = str(item.get("description") or item.get("summary") or "").strip()
+        programme = str(item.get("programme") or item.get("programmeName") or "Horizon Europe").strip()
+        topic = str(item.get("topic") or item.get("topicName") or "research").strip()
+
+        results.append(
+            {
+                "id": f"eu_sedia_{call_id.replace('/', '_').replace(' ', '_')}",
+                "source": "EU Funding & Tenders",
+                "title": title,
+                "deadline": deadline,
+                "funding_amount_eur": 0,
+                "geography": "EU",
+                "eligibility": "See call eligibility conditions",
+                "required_documents": ["proposal", "budget", "consortium_info"],
+                "topic_keywords": [programme, topic, "research", "funding"],
+                "call_url": str(item.get("url") or item.get("link") or ""),
+                "description": description,
+                "programme": programme,
+                "topic": topic,
+                "discovery_source": "eu_sedia_api",
+            }
+        )
+
+        if len(results) >= max_results:
+            return results
+
+    return results
+
+
 def _discover_mock_grants(grants_file: Path) -> list[dict[str, Any]]:
     with grants_file.open("r", encoding="utf-8") as f:
         grants = json.load(f)
@@ -246,6 +331,17 @@ def discover_grants(config: DiscoveryConfig) -> list[dict[str, Any]]:
             grants = _discover_mock_grants(config.grants_file)
             for grant in grants:
                 grant["discovery_source"] = "mock_fallback_grants_gov_api"
+    elif config.source == "eu_sedia_api":
+        try:
+            grants = _discover_eu_sedia_grants(config.eu_sedia_api_url, config.max_results, config.eu_sedia_text)
+            if not grants:
+                grants = _discover_mock_grants(config.grants_file)
+                for grant in grants:
+                    grant["discovery_source"] = "mock_fallback_eu_sedia_api"
+        except (URLError, TimeoutError, ValueError):
+            grants = _discover_mock_grants(config.grants_file)
+            for grant in grants:
+                grant["discovery_source"] = "mock_fallback_eu_sedia_api"
     else:
         grants = _discover_mock_grants(config.grants_file)
 

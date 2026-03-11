@@ -16,7 +16,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--grants", default="data/mock_grants.json", help="Path to grants JSON")
     parser.add_argument(
         "--discovery-source",
-        choices=["mock", "vinnova_api", "grants_gov_api"],
+        choices=["mock", "vinnova_api", "grants_gov_api", "eu_sedia_api"],
         default="mock",
         help="Grant discovery source",
     )
@@ -34,6 +34,16 @@ def parse_args() -> argparse.Namespace:
         "--grants-gov-keyword",
         default="artificial intelligence",
         help="Keyword used when querying Grants.gov",
+    )
+    parser.add_argument(
+        "--eu-sedia-api-url",
+        default="https://api.tech.ec.europa.eu/search-api/prod/rest/search?apiKey=SEDIA&text=*",
+        help="EU SEDIA search API URL for discovery",
+    )
+    parser.add_argument(
+        "--eu-sedia-text",
+        default="artificial intelligence",
+        help="Query text used when querying EU SEDIA",
     )
     parser.add_argument("--templates", default="templates", help="Directory with proposal templates")
     parser.add_argument("--out", default="output", help="Output directory")
@@ -82,6 +92,8 @@ def main() -> None:
             vinnova_api_url=args.vinnova_api_url,
             grants_gov_api_url=args.grants_gov_api_url,
             grants_gov_keyword=args.grants_gov_keyword,
+            eu_sedia_api_url=args.eu_sedia_api_url,
+            eu_sedia_text=args.eu_sedia_text,
         )
     )
     ranked = rank_grants(discovered, profile)[: args.top_k]
@@ -111,6 +123,8 @@ def main() -> None:
                 "discovery_source": item.grant.get("discovery_source", "unknown"),
                 "deadline": item.grant.get("deadline"),
                 "match_score": item.match_score,
+                "eligibility_status": item.eligibility_status,
+                "eligibility_score": item.eligibility_score,
                 "reasons": item.reasons,
             }
         )

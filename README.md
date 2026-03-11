@@ -12,6 +12,7 @@ Grant is an AI agent that helps researchers find and apply for research funding.
 - Ranks opportunities against a researcher or lab profile
 - Generates structured proposal drafts
 - Produces submission-ready checklists and metadata for human review
+- Evaluates baseline eligibility (`eligible`, `maybe`, `not_eligible`) with explainable reasons
 
 ## Product Positioning
 
@@ -21,6 +22,20 @@ Final decisions and submission actions remain under human control.
 ## Core Workflow
 
 `discover -> rank -> draft -> submission-ready package`
+
+## Discovery Sources
+
+- `mock`
+- `vinnova_api`
+- `grants_gov_api`
+- `eu_sedia_api`
+
+## Run
+
+```bash
+python3 run_pipeline.py --top-k 3
+python3 run_pipeline.py --discovery-source eu_sedia_api --eu-sedia-text "artificial intelligence"
+```
 
 ## One-Line Description
 
