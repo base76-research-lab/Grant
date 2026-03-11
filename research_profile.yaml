@@ -10,5 +10,15 @@ researcher:
     - hallucination detection
     - latent field dynamics
     - transformer observability
+  assets:
+    papers:
+      - "Base76: Field Reliability in AI Systems (preprint)"
+      - "Mechanistic Interpretability Notes (working paper)"
+    repos:
+      - "https://github.com/base76-research-lab/Grant"
+      - "https://github.com/base76-research-lab/base76-research-lab"
+    experiments:
+      - "exp_005_trajectory_block"
+      - "exp_011_hierarchical_hidden_gate"
   typical_budget: 50000-2000000 EUR
   geography: EU

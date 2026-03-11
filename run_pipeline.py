@@ -5,7 +5,10 @@ import json
 from pathlib import Path
 
 from grant_agent.discover_grants import DiscoveryConfig, discover_grants
+from grant_agent.evidence_pack_builder import build_evidence_pack
 from grant_agent.eligibility_engine import load_eligibility_rules
+from grant_agent.knowledge_graph import build_knowledge_graph
+from grant_agent.profile_index import load_profile_index
 from grant_agent.proposal_draft import generate_draft
 from grant_agent.rank_grants import load_research_profile, rank_grants
 from grant_agent.submission_helper import create_submission_packet
@@ -62,6 +65,11 @@ def parse_args() -> argparse.Namespace:
         default="eligibility_rules.yaml",
         help="Path to YAML file with eligibility rules",
     )
+    parser.add_argument(
+        "--knowledge-graph-output",
+        default="output/grant_knowledge_graph.json",
+        help="Where to write grant knowledge graph JSON",
+    )
     return parser.parse_args()
 
 
@@ -88,7 +96,9 @@ def main() -> None:
     args = parse_args()
     root = Path(__file__).resolve().parent
 
-    profile = load_research_profile(root / args.profile)
+    profile_path = root / args.profile
+    profile = load_research_profile(profile_path)
+    profile_index = load_profile_index(profile_path)
     eligibility_rules = load_eligibility_rules(root / args.eligibility_rules)
     discovered = discover_grants(
         DiscoveryConfig(
@@ -103,6 +113,13 @@ def main() -> None:
             eu_sedia_text=args.eu_sedia_text,
         )
     )
+
+    graph = build_knowledge_graph(discovered, profile_index)
+    graph_output_path = root / args.knowledge_graph_output
+    graph_output_path.parent.mkdir(parents=True, exist_ok=True)
+    graph_output_path.write_text(json.dumps(graph, indent=2), encoding="utf-8")
+    print(f"Knowledge graph exported: {graph_output_path}")
+
     ranked = rank_grants(discovered, profile, eligibility_rules=eligibility_rules)[: args.top_k]
 
     print("\nTop matched grants:")
@@ -157,12 +174,17 @@ def main() -> None:
 
     draft_text = generate_draft(approved_grant, profile, root / args.templates)
     packet = create_submission_packet(approved_grant, draft_text, root / args.out)
+    evidence_pack = build_evidence_pack(approved_grant, profile_index, root / args.out)
 
     print("\nDraft package created (human review gate):")
     print(f"- Approval source: {approval_source}")
     print(f"- Draft: {packet['draft_file']}")
     print(f"- Checklist: {packet['checklist_file']}")
     print(f"- Meta: {packet['meta_file']}")
+    print(f"- Evidence abstract: {evidence_pack['abstract']}")
+    print(f"- Evidence methodology: {evidence_pack['methodology']}")
+    print(f"- Evidence impact: {evidence_pack['impact']}")
+    print(f"- Evidence references: {evidence_pack['references']}")
 
 
 if __name__ == "__main__":
