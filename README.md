@@ -105,6 +105,21 @@ Demo artifacts to show in a GIF/video:
 - Checklist: `output/<grant_id>_submission_checklist.md`
 - Proposal pack: `output/proposal_pack/<grant_id>/`
 
+## Submission Orchestrator (Autofill + Human Gate)
+
+Generate a portal field-map and validation report before manual submission:
+
+```bash
+python3 submission_orchestrator.py --mode dry-run
+python3 submission_orchestrator.py --mode human-gate --grant-id grantsgov_361009
+```
+
+Generated artifacts:
+
+- `output/submission_orchestrator/<grant_id>_field_map.json`
+- `output/submission_orchestrator/<grant_id>_validation.json`
+- `output/submission_orchestrator/<grant_id>_<mode>_review.md`
+
 ## One-Line Description
 
 Grant is an AI funding copilot for researchers, from opportunity discovery to proposal draft generation with a mandatory human approval gate.
