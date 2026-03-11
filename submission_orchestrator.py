@@ -128,10 +128,19 @@ def _validate(field_map: dict[str, Any], output_dir: Path) -> dict[str, Any]:
     pack_dir = output_dir / "proposal_pack" / grant_id
     missing_pack_files = [name for name in REQUIRED_PACK_FILES if not (pack_dir / name).exists()]
 
-    required_documents = field_map.get("required_documents") or []
-    unresolved_required_documents = [doc for doc in required_documents if str(doc).strip()]
+    required_documents = [str(doc).strip().lower() for doc in (field_map.get("required_documents") or []) if str(doc).strip()]
+    doc_presence = {
+        "proposal": (output_dir / f"{grant_id}_proposal.md").exists(),
+        "budget": (output_dir / f"{grant_id}_budget.md").exists(),
+    }
+    unresolved_required_documents = [doc for doc in required_documents if not doc_presence.get(doc, False)]
 
-    is_ready = not missing_portal_fields and not missing_pack_files and not weak_fields
+    is_ready = (
+        not missing_portal_fields
+        and not missing_pack_files
+        and not weak_fields
+        and not unresolved_required_documents
+    )
     return {
         "grant_id": grant_id,
         "is_ready_for_human_submit": is_ready,
