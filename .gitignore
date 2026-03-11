@@ -4,3 +4,7 @@ output/
 .env
 .env.*
 !.env.example
+
+# Prevent accidental commits of generated application documents.
+*_proposal.md
+*_budget.md
