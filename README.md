@@ -6,6 +6,14 @@
 
 Grant is an AI agent that helps researchers find and apply for research funding.
 
+## Landing Pitch
+
+Grant cuts funding search and first-draft work from hours to minutes for AI researchers.
+
+- Problem: funding discovery is fragmented and proposal starts are cognitively expensive.
+- Solution: one command to discover calls, rank relevance, and generate a human-review proposal pack.
+- Outcome: less admin friction, faster decision cycles, more time for research.
+
 ## What Grant Does
 
 - Discovers funding opportunities from relevant grant sources
@@ -76,6 +84,26 @@ Outputs now include:
 - `output/proposal_pack/<grant_id>/methodology.md`
 - `output/proposal_pack/<grant_id>/impact.md`
 - `output/proposal_pack/<grant_id>/references.md`
+
+## 60-Second Demo
+
+Run a live discovery + auto-approval flow and review generated artifacts:
+
+```bash
+python3 run_pipeline.py \
+	--discovery-source grants_gov_api \
+	--grants-gov-keyword "artificial intelligence" \
+	--top-k 1 \
+	--auto-approve-top \
+	--auth-env-file .env
+```
+
+Demo artifacts to show in a GIF/video:
+
+- Ranked output: `output/ranked_grants.json`
+- Draft: `output/<grant_id>_draft.md`
+- Checklist: `output/<grant_id>_submission_checklist.md`
+- Proposal pack: `output/proposal_pack/<grant_id>/`
 
 ## One-Line Description
 
